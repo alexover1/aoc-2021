@@ -1,9 +1,5 @@
 let file = "input.txt"
 let axis_size = 5
-let board_size = axis_size * axis_size
-
-let column (board: 'a array array) (c: int) : 'a array =
-    Array.init axis_size (fun i -> board.(i).(c))
 
 let columns(board: 'a array array) : 'a array array =
     Array.init axis_size (fun i -> Array.init axis_size (fun j -> board.(j).(i)))
@@ -43,6 +39,8 @@ class board_type =
             !sum
     end;;
 
+type blist = board_type list
+
 let read_board ic =
     let board = new board_type in
     for i = 1 to 5 do
@@ -55,7 +53,7 @@ let read_board ic =
         board#push_row row
     done; board;;
 
-let read_boards filename : (int array * board_type list) =
+let read_boards filename : (int array * blist) =
     let numbers = ref [||] in
     let boards = ref [] in
     let chan = open_in filename in
@@ -66,7 +64,7 @@ let read_boards filename : (int array * board_type list) =
             |> List.map (fun s -> int_of_string s)
             |> Array.of_list;
         ignore (input_line chan);
-        
+
         while true; do
             boards := read_board chan :: !boards;
             ignore (input_line chan);
@@ -75,7 +73,7 @@ let read_boards filename : (int array * board_type list) =
         close_in chan;
         (!numbers, List.rev !boards);;
 
-let draw_number (boards: board_type list) (n: int) =
+let draw_number (boards: blist) (n: int) =
     let f board = board#mark_if_has n in
     List.iter f boards;;
 
@@ -87,12 +85,31 @@ let part_one =
             (List.find (fun board -> board#bingo) boards)#sum
         with Not_found -> (-1)
     in
-    let rec solve a d =
-        if d != -1 then d * numbers.(a-1)
-        else solve (a+1) (next_state numbers.(a))
+    let rec solve acc res =
+        if res != -1 then res * numbers.(acc-1)
+        else solve (acc+1) (next_state numbers.(acc))
     in
     let result = solve 0 (-1) in
     Printf.printf "Part One: %d\n" result;;
 
+let part_two =
+    let numbers, boards = read_boards file in
+    let next_state (bs: blist) (n: int) : blist * int =
+        draw_number bs n;
+        match bs with
+        | [b] -> if b#bingo then bs, b#sum else bs, (-1)
+        | bs -> List.filter (fun b -> not b#bingo) bs, (-1)
+    in
+    let rec solve bs acc res =
+        if res != -1 then res * numbers.(acc-1)
+        else 
+            let bs, res = next_state bs numbers.(acc) in
+            solve bs (acc+1) res
+    in
+    let result = solve boards 0 (-1) in
+    Printf.printf "Part Two: %d\n" result;;
+
 let () =
-    part_one;;
+    part_one;
+    part_two;;
+
